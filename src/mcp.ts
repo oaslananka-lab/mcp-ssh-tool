@@ -3,6 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
@@ -81,11 +82,12 @@ export class SSHMCPServer {
     this.server = new Server(
       {
         name: 'ssh-mcp-server',
-        version: '1.2.5',
+        version: '1.2.7',
       },
       {
         capabilities: {
           tools: {},
+          resources: {},
         },
       }
     );
@@ -95,6 +97,11 @@ export class SSHMCPServer {
   }
 
   private setupToolHandlers() {
+    // List resources (empty - this server provides tools, not resources)
+    this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+      return { resources: [] };
+    });
+
     // List all available tools
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
