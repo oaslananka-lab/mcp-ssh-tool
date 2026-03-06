@@ -164,14 +164,14 @@ export async function statFile(
     if (!hasSftp(session)) {
       const output = await execFallback(
         sessionId,
-        `if [ -L ${shellQuote(path)} ]; then printf 'symlink\\t'; elif [ -d ${shellQuote(path)} ]; then printf 'directory\\t'; elif [ -f ${shellQuote(path)} ]; then printf 'file\\t'; else printf 'other\\t'; fi; stat -c '%s\\t%Y\\t%a' ${shellQuote(path)}`
+          `target=${shellQuote(path)}; if [ -L "$target" ]; then type=symlink; elif [ -d "$target" ]; then type=directory; elif [ -f "$target" ]; then type=file; else type=other; fi; size=$(stat -c '%s' "$target"); mtime=$(stat -c '%Y' "$target"); mode=$(stat -c '%a' "$target"); printf '%s\t%s\t%s\t%s' "$type" "$size" "$mtime" "$mode"`
       );
 
       const [type, size, mtime, mode] = output.trim().split('\t');
       return {
         size: Number(size),
         mtime: new Date(Number(mtime) * 1000),
-        mode: Number(mode),
+        mode: parseInt(mode, 8),
         type: (type as FileStatInfo['type']) || 'other'
       };
     }
