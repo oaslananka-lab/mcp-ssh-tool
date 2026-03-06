@@ -50,6 +50,7 @@ export interface SessionResult {
   sessionId: string;
   host: string;
   username: string;
+  sftpAvailable: boolean;
   expiresInMs: number;
 }
 

@@ -63,7 +63,7 @@ The SSH MCP Server acts as a bridge between GitHub Copilot and remote systems vi
 - **Non-interactive SSH operations** - No prompts or GUI interactions
 - **Multiple authentication methods** - Password, SSH keys, or SSH agent
 - **Session management** - Automatic connection pooling with TTL and LRU eviction
-- **File system operations** - Read, write, list, and manage remote files via SFTP
+- **File system operations** - Read, write, list, and manage remote files via SFTP, with SSH-shell fallbacks for hosts that do not expose an SFTP subsystem
 - **Process execution** - Run commands and sudo operations remotely
 - **High-level automation** - Package management, service control, and configuration management
 - **Security** - Automatic redaction of sensitive data in logs
@@ -76,10 +76,19 @@ The SSH MCP Server acts as a bridge between GitHub Copilot and remote systems vi
 │     / VS Code   │    │                  │    │   (via SSH)     │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                       │                       │
-         │ MCP stdio protocol    │ Session management    │ SSH + SFTP
+         │ MCP stdio protocol    │ Session management    │ SSH + optional SFTP
          │                       │ LRU cache + TTL       │
          │                       │ Auth strategies       │
 ```
+
+### Embedded / BusyBox Targets
+
+Some embedded targets expose SSH command execution but do not ship an SFTP
+subsystem, which is common with Dropbear- or BusyBox-based systems. In that
+case `ssh_open_session` still succeeds and reports `sftpAvailable: false`.
+Core file tools such as `fs_read`, `fs_write`, `fs_stat`, `fs_list`,
+`fs_mkdirp`, `fs_rmrf`, and `fs_rename` automatically fall back to shell-based
+implementations.
 
 ## Installation
 

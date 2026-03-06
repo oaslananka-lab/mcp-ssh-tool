@@ -13,7 +13,7 @@ import { detectOS } from './detect.js';
  */
 export interface SSHSession {
   ssh: NodeSSH;
-  sftp: SftpClient;
+  sftp?: SftpClient;
   info: SessionInfo;
   connectionParams?: ConnectionParams; // For auto-reconnect
   osInfo?: OSInfo;
@@ -101,15 +101,28 @@ export class SessionManager {
       logger.debug('Connecting to SSH server');
       await ssh.connect(connectConfig);
 
-      // Initialize SFTP client
-      const sftp = new SftpClient();
-      await sftp.connect({
-        host: params.host,
-        username: params.username,
-        port: params.port || 22,
-        readyTimeout: params.readyTimeoutMs || 20000,
-        ...authConfig
-      });
+      // Initialize SFTP when available. Some embedded targets expose SSH
+      // command execution but do not provide an SFTP subsystem.
+      let sftp: SftpClient | undefined;
+      let sftpAvailable = false;
+      try {
+        const sftpClient = new SftpClient();
+        await sftpClient.connect({
+          host: params.host,
+          username: params.username,
+          port: params.port || 22,
+          readyTimeout: params.readyTimeoutMs || 20000,
+          ...authConfig
+        });
+        sftp = sftpClient;
+        sftpAvailable = true;
+      } catch (sftpError) {
+        logger.warn('SFTP unavailable, continuing with SSH-only session', {
+          host: params.host,
+          username: params.username,
+          error: sftpError instanceof Error ? sftpError.message : String(sftpError)
+        });
+      }
 
       const sessionInfo: SessionInfo = {
         sessionId,
@@ -134,6 +147,7 @@ export class SessionManager {
         sessionId,
         host: params.host,
         username: params.username,
+        sftpAvailable,
         expiresInMs: ttl
       });
 
@@ -141,6 +155,7 @@ export class SessionManager {
         sessionId,
         host: params.host,
         username: params.username,
+        sftpAvailable,
         expiresInMs: ttl
       };
 
@@ -186,7 +201,9 @@ export class SessionManager {
     }
 
     try {
-      await session.sftp.end();
+      if (session.sftp) {
+        await session.sftp.end();
+      }
       session.ssh.dispose();
     } catch (error) {
       logger.warn('Error closing session', { sessionId, error });

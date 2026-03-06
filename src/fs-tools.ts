@@ -3,6 +3,40 @@ import { createFilesystemError, wrapError } from './errors.js';
 import { logger } from './logging.js';
 import { sessionManager } from './session.js';
 import { ErrorCode } from './types.js';
+import { buildRemoteCommand } from './shell.js';
+
+function shellQuote(value: string): string {
+  return `'${String(value).replace(/'/g, `'"'"'`)}'`;
+}
+
+async function execFallback(sessionId: string, command: string): Promise<string> {
+  const session = sessionManager.getSession(sessionId);
+  if (!session) {
+    throw new Error(`Session ${sessionId} not found or expired`);
+  }
+
+  const osInfo = await sessionManager.getOSInfo(sessionId);
+  const shellCommand = buildRemoteCommand(command, osInfo);
+  const result = await session.ssh.execCommand(shellCommand);
+
+  if ((result.code || 0) !== 0) {
+    throw new Error(result.stderr || result.stdout || `Remote command failed with code ${result.code}`);
+  }
+
+  return result.stdout || '';
+}
+
+function hasSftp(session: { sftp?: unknown } | undefined): boolean {
+  return !!session?.sftp;
+}
+
+function getSftpOrThrow(session: { sftp?: any }) {
+  if (!session.sftp) {
+    throw createFilesystemError('SFTP subsystem is unavailable for this session');
+  }
+
+  return session.sftp;
+}
 
 /**
  * Reads a file from the remote system
@@ -20,7 +54,14 @@ export async function readFile(
   }
   
   try {
-    const data = await session.sftp.get(path);
+    if (!hasSftp(session)) {
+      const data = await execFallback(sessionId, `cat ${shellQuote(path)}`);
+      logger.debug('File read successfully via SSH fallback', { sessionId, path, size: data.length });
+      return data;
+    }
+
+    const sftp = getSftpOrThrow(session);
+    const data = await sftp.get(path);
     const result = Buffer.isBuffer(data) ? data.toString(encoding as any) : String(data);
     logger.debug('File read successfully', { sessionId, path, size: result.length });
     return result;
@@ -51,27 +92,44 @@ export async function writeFile(
   }
   
   try {
+    if (!hasSftp(session)) {
+      const tempPath = `${path}.tmp.${Date.now()}`;
+      const chmodCommand = mode !== undefined
+        ? `chmod ${mode.toString(8)} ${shellQuote(tempPath)}\n`
+        : '';
+
+      await execFallback(
+        sessionId,
+        `printf %s ${shellQuote(data)} > ${shellQuote(tempPath)}\n${chmodCommand}mv ${shellQuote(tempPath)} ${shellQuote(path)}`
+      );
+
+      logger.debug('File written successfully via SSH fallback', { sessionId, path });
+      return true;
+    }
+
+    const sftp = getSftpOrThrow(session);
+
     // Use atomic write: write to temp file, then rename
     const tempPath = `${path}.tmp.${Date.now()}`;
     
     try {
       // Write to temporary file
-      await session.sftp.put(Buffer.from(data, 'utf8'), tempPath);
+      await sftp.put(Buffer.from(data, 'utf8'), tempPath);
       
       // Set permissions if specified
       if (mode !== undefined) {
-        await session.sftp.chmod(tempPath, mode);
+        await sftp.chmod(tempPath, mode);
       }
       
       // Atomic rename
-      await session.sftp.rename(tempPath, path);
+      await sftp.rename(tempPath, path);
       
       logger.debug('File written successfully', { sessionId, path });
       return true;
     } catch (writeError) {
       // Clean up temp file on failure
       try {
-        await session.sftp.delete(tempPath);
+        await sftp.delete(tempPath);
         logger.debug('Cleaned up temp file after error', { tempPath });
       } catch (cleanupError) {
         logger.warn('Failed to clean up temp file', { tempPath, cleanupError });
@@ -103,7 +161,23 @@ export async function statFile(
   }
   
   try {
-    const stats = await session.sftp.stat(path);
+    if (!hasSftp(session)) {
+      const output = await execFallback(
+        sessionId,
+        `if [ -L ${shellQuote(path)} ]; then printf 'symlink\\t'; elif [ -d ${shellQuote(path)} ]; then printf 'directory\\t'; elif [ -f ${shellQuote(path)} ]; then printf 'file\\t'; else printf 'other\\t'; fi; stat -c '%s\\t%Y\\t%a' ${shellQuote(path)}`
+      );
+
+      const [type, size, mtime, mode] = output.trim().split('\t');
+      return {
+        size: Number(size),
+        mtime: new Date(Number(mtime) * 1000),
+        mode: Number(mode),
+        type: (type as FileStatInfo['type']) || 'other'
+      };
+    }
+
+    const sftp = getSftpOrThrow(session);
+    const stats = await sftp.stat(path);
     
     let type: FileStatInfo['type'] = 'other';
     if ((stats as any).isFile && (stats as any).isFile()) {
@@ -150,7 +224,39 @@ export async function listDirectory(
   }
   
   try {
-    const fileList = await session.sftp.list(path);
+    if (!hasSftp(session)) {
+      const output = await execFallback(
+        sessionId,
+        `dir=${shellQuote(path)}; for item in "$dir"/* "$dir"/.[!.]* "$dir"/..?*; do [ -e "$item" ] || continue; name=$(basename "$item"); if [ -L "$item" ]; then type=symlink; elif [ -d "$item" ]; then type=directory; elif [ -f "$item" ]; then type=file; else type=other; fi; size=$(stat -c '%s' "$item" 2>/dev/null || echo 0); mtime=$(stat -c '%Y' "$item" 2>/dev/null || echo 0); printf '%s\\t%s\\t%s\\t%s\\n' "$name" "$type" "$size" "$mtime"; done`
+      );
+
+      const entries: DirEntry[] = output
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .map((line) => {
+          const [name, typeName, size, mtime] = line.split('\t');
+          return {
+            name,
+            type: (typeName as DirEntry['type']) || 'other',
+            size: Number(size),
+            mtime: new Date(Number(mtime) * 1000)
+          };
+        });
+
+      if (page !== undefined) {
+        const startIndex = page * limit;
+        const endIndex = startIndex + limit;
+        return {
+          entries: entries.slice(startIndex, endIndex),
+          nextToken: endIndex < entries.length ? String(page + 1) : undefined
+        };
+      }
+
+      return { entries };
+    }
+
+    const sftp = getSftpOrThrow(session);
+    const fileList = await sftp.list(path);
     
     // Convert to our DirEntry format
     const entries: DirEntry[] = fileList.map((item: any) => {
@@ -223,7 +329,14 @@ export async function makeDirectories(
   }
   
   try {
-    await session.sftp.mkdir(path, true); // recursive = true
+    if (!hasSftp(session)) {
+      await execFallback(sessionId, `mkdir -p ${shellQuote(path)}`);
+      logger.debug('Directories created successfully via SSH fallback', { sessionId, path });
+      return true;
+    }
+
+    const sftp = getSftpOrThrow(session);
+    await sftp.mkdir(path, true); // recursive = true
     logger.debug('Directories created successfully', { sessionId, path });
     return true;
   } catch (error) {
@@ -251,15 +364,22 @@ export async function removeRecursive(
   }
   
   try {
+    if (!hasSftp(session)) {
+      await execFallback(sessionId, `rm -rf ${shellQuote(path)}`);
+      logger.debug('Path removed successfully via SSH fallback', { sessionId, path });
+      return true;
+    }
+
+    const sftp = getSftpOrThrow(session);
     // Check if path exists and get its type
-    const stats = await session.sftp.stat(path);
+    const stats = await sftp.stat(path);
     
     if ((stats as any).isDirectory && (stats as any).isDirectory()) {
       // Remove directory recursively
-      await session.sftp.rmdir(path, true); // recursive = true
+      await sftp.rmdir(path, true); // recursive = true
     } else {
       // Remove file
-      await session.sftp.delete(path);
+      await sftp.delete(path);
     }
     
     logger.debug('Path removed successfully', { sessionId, path });
@@ -290,7 +410,14 @@ export async function renameFile(
   }
   
   try {
-    await session.sftp.rename(from, to);
+    if (!hasSftp(session)) {
+      await execFallback(sessionId, `mv ${shellQuote(from)} ${shellQuote(to)}`);
+      logger.debug('File renamed successfully via SSH fallback', { sessionId, from, to });
+      return true;
+    }
+
+    const sftp = getSftpOrThrow(session);
+    await sftp.rename(from, to);
     logger.debug('File renamed successfully', { sessionId, from, to });
     return true;
   } catch (error) {
