@@ -3,6 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/mcp-ssh-tool.svg)](https://www.npmjs.com/package/mcp-ssh-tool)
 [![npm downloads](https://img.shields.io/npm/dm/mcp-ssh-tool.svg)](https://www.npmjs.com/package/mcp-ssh-tool)
 [![license](https://img.shields.io/npm/l/mcp-ssh-tool.svg)](https://github.com/oaslananka/mcp-ssh-tool/blob/main/LICENSE)
+[![LobeHub](https://img.shields.io/badge/LobeHub-MCP%20Server-6D4AFF)](https://lobehub.com/tr/mcp/oaslananka-mcp-ssh-tool)
 
 A Model Context Protocol (MCP) SSH client server that provides autonomous SSH operations for GitHub Copilot and VS Code. Enable natural language SSH automation without manual prompts or GUI interactions.
 
@@ -38,6 +39,11 @@ Once configured, you can use natural language with your MCP client:
 - **Command Execution**: "Run 'systemctl status nginx' on the remote server"
 - **Package Management**: "Install htop package on Ubuntu server"
 - **Service Control**: "Restart the nginx service"
+- **Claude Desktop**: "connect to my server and check disk usage"
+- **Install a package/service stack**: "install nginx on my remote server"
+- **Read a config file**: "read the file /etc/nginx/nginx.conf"
+- **Restart a service**: "restart the nginx service"
+- **Browse logs**: "list files in /var/log"
 
 ### Available Tools
 
@@ -232,6 +238,34 @@ Create `.vscode/mcp.json` in your workspace:
 192.168.1.20 cache-server
 Then restart networking service"
 ```
+
+### Ready-to-use Prompt Ideas
+
+```text
+"connect to my server and check disk usage"
+```
+
+```text
+"install nginx on my remote server"
+```
+
+```text
+"read the file /etc/nginx/nginx.conf"
+```
+
+```text
+"restart the nginx service"
+```
+
+```text
+"list files in /var/log"
+```
+
+## Pro Tips
+
+- **Multiple sessions**: Open one session per host or environment and keep them alive with `ssh_list_sessions` and `ssh_ping` when you are switching between production, staging, and development machines.
+- **SFTP fallback for BusyBox/Dropbear**: On embedded systems that do not expose an SFTP subsystem, `ssh_open_session` can still succeed with `sftpAvailable: false`, and the core `fs_*` tools automatically fall back to shell-based implementations.
+- **Host key verification**: Set `STRICT_HOST_KEY_CHECKING=true` in the MCP server environment and optionally `KNOWN_HOSTS_PATH` for stricter production-grade SSH verification.
 
 ## API Reference
 
@@ -625,8 +659,11 @@ E2E tests require a local Docker container or SSH server for testing.
 
 MIT License - see LICENSE file for details.
 
-## Related Links
+## References
 
-- [Model Context Protocol](https://modelcontextprotocol.io/) - Official MCP documentation
+- [Model Context Protocol](https://modelcontextprotocol.io)
+- [Anthropic MCP on GitHub](https://github.com/anthropics/mcp)
+- [Glama MCP Server Listing](https://glama.ai/mcp/servers/oaslananka/mcp-ssh-tool)
+- [LobeHub MCP Listing](https://lobehub.com/tr/mcp/oaslananka-mcp-ssh-tool)
 - [VS Code MCP Guide](https://code.visualstudio.com/docs/copilot/copilot-extensibility-overview) - VS Code Copilot extensibility
 - [GitHub Copilot](https://github.com/features/copilot) - GitHub Copilot documentation
