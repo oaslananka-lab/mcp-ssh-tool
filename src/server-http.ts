@@ -91,7 +91,7 @@ const httpServer = createServer(async (req, res) => {
 
   if (requestUrl.pathname === "/.well-known/openai-apps-challenge") {
     res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
-    res.end("cxYvVGUrMx7VjCgIz8KmodNB6dR7RyPLWpW7Lcy2Kg");
+    res.end("cxYvVGiJrMx7VjCg1z8KmodNB6dR7RyPLWpW7Lcy2Kg");
     return;
   }
 
