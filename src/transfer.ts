@@ -97,7 +97,9 @@ export async function uploadFileWithProgress(
     throw createFilesystemError("Session not found or expired");
   }
   if (!session.sftp) {
-    throw createFilesystemError("SFTP subsystem is unavailable for this session");
+    throw createFilesystemError(
+      "SFTP subsystem is unavailable for this session",
+    );
   }
 
   const sftp = session.sftp;
@@ -176,7 +178,9 @@ export async function downloadFileWithProgress(
     throw createFilesystemError("Session not found or expired");
   }
   if (!session.sftp) {
-    throw createFilesystemError("SFTP subsystem is unavailable for this session");
+    throw createFilesystemError(
+      "SFTP subsystem is unavailable for this session",
+    );
   }
 
   const sftp = session.sftp;
