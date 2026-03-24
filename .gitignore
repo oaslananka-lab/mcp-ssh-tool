@@ -20,6 +20,9 @@ Thumbs.db
 # Logs
 *.log
 
+# MCP Registry auth tokens
+.mcpregistry_*
+
 # SSH keys (for security)
 *.pem
 *.key

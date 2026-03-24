@@ -93,7 +93,7 @@ export class SSHMCPServer {
     this.server = new Server(
       {
         name: "ssh-mcp-server",
-        version: "1.3.0",
+        version: '1.3.1',
       },
       {
         capabilities: {
