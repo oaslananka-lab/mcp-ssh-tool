@@ -645,6 +645,7 @@ Custom key directory: Set `SSH_DEFAULT_KEY_DIR` environment variable.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `LOG_LEVEL` | Logging level (`error`, `warn`, `info`, `debug`) | `info` |
+| `LOG_FORMAT` | Log output format (`plain`, `json`) | `plain` |
 | `STRICT_HOST_KEY_CHECKING` | Enable strict SSH host key verification | `false` |
 | `KNOWN_HOSTS_PATH` | Custom `known_hosts` file path | `~/.ssh/known_hosts` |
 | `SSH_DEFAULT_KEY_DIR` | SSH key search directory | `~/.ssh` |
@@ -653,6 +654,7 @@ Custom key directory: Set `SSH_DEFAULT_KEY_DIR` environment variable.
 | `SSH_MCP_COMMAND_TIMEOUT` | Default command timeout in milliseconds | `30000` |
 | `SSH_MCP_DEBUG` | Enable debug logging | `false` |
 | `SSH_MCP_RATE_LIMIT` | Enable rate limiting (`true` / `false`) | `true` |
+| `SSH_MCP_STRICT_HOST_KEY` | Legacy alias for strict host key verification | `false` |
 
 ### Default Settings
 
@@ -706,6 +708,12 @@ Sensitive data is automatically redacted from logs:
 - LRU cache eviction
 - Graceful connection cleanup
 - No persistent credential storage
+
+## Additional Documentation
+
+- [docs/configuration.md](docs/configuration.md) - environment variables, runtime modes, and example `.env` settings
+- [docs/security-model.md](docs/security-model.md) - redaction, host key verification, rate limiting, and safety guardrails
+- [docs/troubleshooting.md](docs/troubleshooting.md) - common setup, connection, and runtime issues
 
 ## Development
 

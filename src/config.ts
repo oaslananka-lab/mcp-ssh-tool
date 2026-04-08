@@ -87,7 +87,9 @@ export class ConfigManager {
     if (process.env.SSH_MCP_RATE_LIMIT === "false") {
       config.rateLimit.enabled = false;
     }
-    if (process.env.SSH_MCP_STRICT_HOST_KEY === "true") {
+    const strictHostKeyChecking =
+      process.env.STRICT_HOST_KEY_CHECKING ?? process.env.SSH_MCP_STRICT_HOST_KEY;
+    if (strictHostKeyChecking === "true") {
       config.security.requireHostKeyVerification = true;
     }
 

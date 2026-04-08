@@ -9,6 +9,7 @@ describe("ConfigManager", () => {
     delete process.env.SSH_MCP_DEBUG;
     delete process.env.SSH_MCP_RATE_LIMIT;
     delete process.env.SSH_MCP_STRICT_HOST_KEY;
+    delete process.env.STRICT_HOST_KEY_CHECKING;
   });
 
   test("uses default values", () => {
@@ -34,6 +35,14 @@ describe("ConfigManager", () => {
     expect(config.get("commandTimeoutMs")).toBe(7000);
     expect(config.get("debug")).toBe(true);
     expect(config.get("rateLimit").enabled).toBe(false);
+    expect(config.get("security").requireHostKeyVerification).toBe(true);
+  });
+
+  test("reads STRICT_HOST_KEY_CHECKING as the preferred host verification flag", () => {
+    process.env.STRICT_HOST_KEY_CHECKING = "true";
+
+    const config = new ConfigManager();
+
     expect(config.get("security").requireHostKeyVerification).toBe(true);
   });
 

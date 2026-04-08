@@ -1,0 +1,23 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "schedule:weekly",
+    ":separateMajorReleases",
+    ":automergeMinor"
+  ],
+  "packageRules": [
+    {
+      "matchDepTypes": [
+        "devDependencies"
+      ],
+      "automerge": true
+    },
+    {
+      "matchPackageNames": [
+        "@modelcontextprotocol/sdk"
+      ],
+      "automerge": false
+    }
+  ]
+}

@@ -89,49 +89,69 @@ export enum LogLevel {
   DEBUG = 3,
 }
 
+export type LogFormat = "plain" | "json";
+
 /**
  * Simple logger with redaction
  */
 export class Logger {
-  private level: LogLevel;
+  constructor(
+    private readonly level: LogLevel = LogLevel.INFO,
+    private readonly format: LogFormat = "plain",
+  ) {}
 
-  constructor(level: LogLevel = LogLevel.INFO) {
-    this.level = level;
+  private writePlain(timestamp: string, levelName: string, message: string, data?: unknown): void {
+    let output = `[${timestamp}] ${levelName}: ${message}`;
+
+    if (data !== undefined) {
+      output += ` ${JSON.stringify(data)}`;
+    }
+
+    process.stderr.write(`${output}\n`);
   }
 
-  private log(level: LogLevel, message: string, data?: unknown) {
+  private writeJson(timestamp: string, levelName: string, message: string, data?: unknown): void {
+    const output = {
+      timestamp,
+      level: levelName.toLowerCase(),
+      message,
+      ...(data !== undefined ? { data } : {}),
+    };
+
+    process.stderr.write(`${JSON.stringify(output)}\n`);
+  }
+
+  private log(level: LogLevel, message: string, data?: unknown): void {
     if (level > this.level) {
       return;
     }
 
     const timestamp = new Date().toISOString();
     const levelName = LogLevel[level];
+    const redactedData = data !== undefined ? redactSensitiveData(data) : undefined;
 
-    let output = `[${timestamp}] ${levelName}: ${message}`;
-
-    if (data !== undefined) {
-      const redactedData = redactSensitiveData(data);
-      output += ` ${JSON.stringify(redactedData)}`;
+    if (this.format === "json") {
+      this.writeJson(timestamp, levelName, message, redactedData);
+      return;
     }
 
-    // Write to stderr to avoid interfering with MCP stdio
-    process.stderr.write(output + "\n");
+    this.writePlain(timestamp, levelName, message, redactedData);
   }
 
-  error(message: string, data?: unknown) {
+  error(message: string, data?: unknown): void {
     const redactedMessage = redactErrorMessage(message);
     this.log(LogLevel.ERROR, redactedMessage, data);
   }
 
-  warn(message: string, data?: unknown) {
+  warn(message: string, data?: unknown): void {
     this.log(LogLevel.WARN, message, data);
   }
 
-  info(message: string, data?: unknown) {
+  info(message: string, data?: unknown): void {
     this.log(LogLevel.INFO, message, data);
   }
 
-  debug(message: string, data?: unknown) {
+  debug(message: string, data?: unknown): void {
     this.log(LogLevel.DEBUG, message, data);
   }
 }
@@ -143,11 +163,18 @@ const LOG_LEVEL_MAP: Record<string, LogLevel> = {
   info: LogLevel.INFO,
   debug: LogLevel.DEBUG,
 };
+const LOG_FORMAT_MAP: Record<string, LogFormat> = {
+  plain: "plain",
+  pretty: "plain",
+  json: "json",
+};
 
 const envLogLevel = process.env.LOG_LEVEL?.toLowerCase() ?? "info";
 const logLevel = LOG_LEVEL_MAP[envLogLevel] ?? LogLevel.INFO;
+const envLogFormat = process.env.LOG_FORMAT?.toLowerCase() ?? "plain";
+const logFormat = LOG_FORMAT_MAP[envLogFormat] ?? "plain";
 
-export const logger = new Logger(logLevel);
+export const logger = new Logger(logLevel, logFormat);
 
 /**
  * Performance measurement utilities

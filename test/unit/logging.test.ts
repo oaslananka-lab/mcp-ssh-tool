@@ -71,6 +71,27 @@ describe("logging utilities", () => {
     expect(output).not.toContain("secret");
   });
 
+  test("Logger emits structured JSON when configured", () => {
+    const logger = new Logger(LogLevel.INFO, "json");
+
+    logger.info("session opened", { password: "secret", sessionId: "abc123" });
+
+    expect(stderrSpy).toHaveBeenCalledTimes(1);
+
+    const output = String(stderrSpy.mock.calls[0][0]).trim();
+    const parsed = JSON.parse(output) as {
+      timestamp: string;
+      level: string;
+      message: string;
+      data: { password: string; sessionId: string };
+    };
+
+    expect(parsed.level).toBe("info");
+    expect(parsed.message).toBe("session opened");
+    expect(parsed.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(parsed.data).toEqual({ password: "****", sessionId: "abc123" });
+  });
+
   test("Timer and createTimer measure elapsed time", () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date("2026-03-22T00:00:00Z"));
