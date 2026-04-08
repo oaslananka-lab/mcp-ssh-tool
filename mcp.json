@@ -2,7 +2,7 @@
   "name": "mcp-ssh-tool",
   "display_name": "SSH MCP Tool",
   "description": "Model Context Protocol SSH server providing remote command, file, and system automation over SSH.",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "author": "Osman Aslan",
   "license": "MIT",
   "runtime": "node",

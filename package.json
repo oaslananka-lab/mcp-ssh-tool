@@ -1,6 +1,6 @@
 {
   "name": "mcp-ssh-tool",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "mcpName": "io.github.oaslananka/mcp-ssh-tool",
   "description": "Model Context Protocol (MCP) SSH client server for remote automation",
   "type": "module",
