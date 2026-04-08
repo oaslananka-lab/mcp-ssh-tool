@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { RateLimiter } from "../../src/rate-limiter.js";
 
 describe("RateLimiter (sliding window)", () => {
@@ -65,6 +65,8 @@ describe("RateLimiter (sliding window)", () => {
   });
 
   test("does not allow a burst after a fixed-window-style reset point", async () => {
+    let now = 0;
+    const nowSpy = jest.spyOn(Date, "now").mockImplementation(() => now);
     const burstLimiter = new RateLimiter({
       maxRequests: 5,
       windowMs: 100,
@@ -76,10 +78,11 @@ describe("RateLimiter (sliding window)", () => {
     }
 
     expect(burstLimiter.check("k").allowed).toBe(false);
-    await new Promise((resolve) => setTimeout(resolve, 60));
+    now = 60;
     expect(burstLimiter.check("k").allowed).toBe(false);
 
     burstLimiter.destroy();
+    nowSpy.mockRestore();
   });
 
   test("reset clears a key", () => {

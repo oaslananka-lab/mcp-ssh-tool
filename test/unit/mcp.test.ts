@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, jest, test } from "@jest/globals";
+import { readFileSync } from "fs";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import {
   CallToolRequestSchema,
@@ -8,6 +9,10 @@ import {
 import { createTestContainer, type AppContainer } from "../../src/container.js";
 import { logger } from "../../src/logging.js";
 import { SERVER_VERSION, SSHMCPServer } from "../../src/mcp.js";
+
+const packageVersion = JSON.parse(readFileSync("package.json", "utf8")) as {
+  version: string;
+};
 
 const handlerMap = new WeakMap<object, Map<unknown, (request?: unknown) => Promise<unknown>>>();
 
@@ -56,7 +61,7 @@ describe("SSHMCPServer", () => {
   });
 
   test("exposes the server version constant", () => {
-    expect(SERVER_VERSION).toBe("1.3.1");
+    expect(SERVER_VERSION).toBe(packageVersion.version);
   });
 
   test("registers handlers and delegates tool calls when rate limiting is disabled", async () => {
