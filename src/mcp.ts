@@ -10,7 +10,7 @@ import type { AppContainer } from "./container.js";
 import { logger } from "./logging.js";
 import { createToolRegistry } from "./tools/index.js";
 
-export const SERVER_VERSION = "1.3.1";
+export const SERVER_VERSION = "1.3.2";
 
 export class SSHMCPServer {
   private readonly server: Server;
