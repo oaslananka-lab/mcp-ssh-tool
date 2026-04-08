@@ -174,6 +174,48 @@ Add to your ChatGPT Desktop MCP config:
 
 For detailed usage, see [docs/chatgpt-usage.md](docs/chatgpt-usage.md).
 
+## Codex Integration
+
+### Quick Setup
+
+Install the package globally, then register it with Codex:
+
+```bash
+npm install -g mcp-ssh-tool
+codex mcp add ssh-mcp -- mcp-ssh-tool
+```
+
+If you prefer not to install globally, you can register it through `npx`:
+
+```bash
+codex mcp add ssh-mcp -- npx -y mcp-ssh-tool
+```
+
+### Verification
+
+Check that Codex can see the MCP server:
+
+```bash
+codex mcp list
+codex mcp get ssh-mcp
+```
+
+You should see an enabled stdio server whose command is `mcp-ssh-tool` or `npx`.
+
+### Optional Security Hardening
+
+To enforce host key verification in the Codex-managed server process:
+
+```bash
+codex mcp remove ssh-mcp
+codex mcp add ssh-mcp \
+  --env STRICT_HOST_KEY_CHECKING=true \
+  --env KNOWN_HOSTS_PATH=/path/to/known_hosts \
+  -- mcp-ssh-tool
+```
+
+After adding the server, restart Codex or open a fresh session, then try a simple tool call such as listing active sessions or opening an SSH connection.
+
 ## VS Code Copilot Integration
 
 ### User-level Configuration (Recommended)
@@ -216,6 +258,47 @@ Create `.vscode/mcp.json` in your workspace:
 2. Open Copilot Chat
 3. The SSH MCP tools should appear in the available tools list
 4. Test with: *"Connect to 192.168.1.100 as admin and run 'uname -a'"*
+
+## Claude Desktop, Antigravity, and Other MCP Clients
+
+Any MCP-compatible client that can launch a stdio server can use `mcp-ssh-tool`.
+The exact settings screen or config file varies by client, but the process is the same:
+
+1. Install the package:
+
+```bash
+npm install -g mcp-ssh-tool
+```
+
+2. Register a stdio MCP server that launches:
+
+```json
+{
+  "servers": {
+    "ssh-mcp": {
+      "type": "stdio",
+      "command": "mcp-ssh-tool",
+      "args": []
+    }
+  }
+}
+```
+
+3. If the client uses an `mcpServers`-style schema instead of `servers`, use the equivalent entry:
+
+```json
+{
+  "mcpServers": {
+    "ssh-mcp-server": {
+      "command": "npx",
+      "args": ["-y", "mcp-ssh-tool"]
+    }
+  }
+}
+```
+
+For Claude Desktop, use the same stdio command pattern above in its MCP configuration.
+For Antigravity or other MCP clients, use the client's own MCP settings UI or config format, but point it at the same executable command.
 
 ## Usage Examples
 

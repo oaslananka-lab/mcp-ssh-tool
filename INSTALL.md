@@ -16,6 +16,34 @@ Verify installation:
 mcp-ssh-tool --version
 ```
 
+## Codex Setup
+
+Register the server with Codex:
+
+```bash
+codex mcp add ssh-mcp -- mcp-ssh-tool
+```
+
+If you do not want a global install, use:
+
+```bash
+codex mcp add ssh-mcp -- npx -y mcp-ssh-tool
+```
+
+Verify the registration:
+
+```bash
+codex mcp list
+codex mcp get ssh-mcp
+```
+
+Optional hardened setup:
+
+```bash
+codex mcp remove ssh-mcp
+codex mcp add ssh-mcp --env STRICT_HOST_KEY_CHECKING=true -- mcp-ssh-tool
+```
+
 ## VS Code Setup
 
 ### 1. Install GitHub Copilot Extension
@@ -65,6 +93,40 @@ Create a `mcp.json` file in your workspace or user settings directory:
 ### 3. Restart VS Code
 
 After configuring, restart VS Code to load the MCP server.
+
+## Claude Desktop, Antigravity, and Other MCP Clients
+
+For any MCP client that supports launching a stdio server, register `mcp-ssh-tool`
+as the command.
+
+Example `servers` schema:
+
+```json
+{
+  "servers": {
+    "ssh-mcp": {
+      "type": "stdio",
+      "command": "mcp-ssh-tool",
+      "args": []
+    }
+  }
+}
+```
+
+Example `mcpServers` schema:
+
+```json
+{
+  "mcpServers": {
+    "ssh-mcp-server": {
+      "command": "npx",
+      "args": ["-y", "mcp-ssh-tool"]
+    }
+  }
+}
+```
+
+Use whichever schema matches the client you are configuring.
 
 ## Usage with GitHub Copilot
 
