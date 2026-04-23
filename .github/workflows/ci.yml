@@ -38,7 +38,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Use pinned npm
-        run: npm install -g npm@11.12.1
+        run: node scripts/use-ci-npm.mjs
 
       - name: Install
         run: npm ci
@@ -66,7 +66,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Use pinned npm
-        run: npm install -g npm@11.12.1
+        run: node scripts/use-ci-npm.mjs
 
       - name: Install
         run: npm ci
@@ -96,7 +96,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Use pinned npm
-        run: npm install -g npm@11.12.1
+        run: node scripts/use-ci-npm.mjs
 
       - name: Install
         run: npm ci
@@ -135,7 +135,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Use pinned npm
-        run: npm install -g npm@11.12.1
+        run: node scripts/use-ci-npm.mjs
 
       - name: Install
         run: npm ci

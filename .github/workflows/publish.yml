@@ -52,7 +52,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Use pinned npm
-        run: npm install -g npm@11.12.1
+        run: node scripts/use-ci-npm.mjs
 
       - name: Fetch publish secrets from Doppler
         id: doppler
