@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, test } from "@jest/globals";
 import { createContainer, type AppContainer } from "../../src/container.js";
 import { createProcessService, type ProcessService } from "../../src/process.js";
 import { withRetry } from "../../src/retry.js";
+import { SSHMCPError } from "../../src/types.js";
 
 const TEST_SSH_HOST = process.env.TEST_SSH_HOST || "localhost";
 const TEST_SSH_PORT = parseInt(process.env.TEST_SSH_PORT || "2222", 10);
@@ -90,24 +91,20 @@ integrationDescribe("SSH integration tests", () => {
   });
 
   test("supports retrying a timed-out remote command until it succeeds", async () => {
-    const attemptFile = path.posix.join(
-      "/tmp",
-      `mcp-ssh-tool-retry-${process.pid}-${Date.now()}.txt`,
-    );
+    let attempts = 0;
 
     const result = await withRetry(
       async () => {
-        const command = [
-          `if [ ! -f ${attemptFile} ]; then`,
-          `  touch ${attemptFile};`,
-          "  sleep 1;",
-          "  echo first-attempt;",
-          "else",
-          "  echo retry-success;",
-          "fi",
-        ].join(" ");
+        attempts++;
+        const command = attempts === 1 ? "sleep 1; echo first-attempt" : "echo retry-success";
 
-        return processService.execCommand(sessionId, command, undefined, undefined, 250);
+        return processService.execCommand(
+          sessionId,
+          command,
+          undefined,
+          undefined,
+          attempts === 1 ? 250 : 2_000,
+        );
       },
       {
         maxAttempts: 2,
@@ -115,16 +112,13 @@ integrationDescribe("SSH integration tests", () => {
         maxDelayMs: 10,
         backoffMultiplier: 1,
         jitter: false,
-        isRetryable: (error) =>
-          error instanceof Error && error.message.toLowerCase().includes("timeout"),
+        isRetryable: (error) => error instanceof SSHMCPError && error.code === "ETIMEOUT",
       },
     );
 
     expect(result.success).toBe(true);
     expect(result.attempts).toBe(2);
     expect(result.result?.stdout).toContain("retry-success");
-
-    await processService.execCommand(sessionId, `rm -f ${attemptFile}`);
   });
 
   test("fails host key verification when strict checking uses an empty known_hosts file", async () => {

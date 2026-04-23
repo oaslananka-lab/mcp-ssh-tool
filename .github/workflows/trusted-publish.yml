@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   publish:
-    if: ${{ inputs.confirm == 'PUBLISH' }}
+    if: ${{ github.repository_owner == 'oaslananka-lab' && inputs.confirm == 'PUBLISH' }}
     runs-on: ubuntu-latest
     environment: npm-production
     steps:
@@ -28,8 +28,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22.x
+          node-version: 24.14.1
           cache: npm
+          cache-dependency-path: package-lock.json
           registry-url: https://registry.npmjs.org
 
       - name: Record Azure validation URL
@@ -40,13 +41,7 @@ jobs:
         run: npm ci
 
       - name: Verify package
-        run: |
-          npm run lint
-          npm test
-          npm run build
-          npm run sync-version -- --check
-          npm run pack:check
-          npm audit --audit-level=moderate
+        run: npm run check
 
       - name: Publish
         run: npm publish --access public --provenance

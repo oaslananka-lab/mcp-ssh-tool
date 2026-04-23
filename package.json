@@ -4,6 +4,7 @@
   "mcpName": "io.github.oaslananka/mcp-ssh-tool",
   "description": "Model Context Protocol (MCP) SSH client server for remote automation",
   "type": "module",
+  "packageManager": "npm@11.12.1",
   "main": "dist/index.js",
   "exports": "./dist/index.js",
   "types": "dist/index.d.ts",
@@ -28,26 +29,35 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json -w",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "jest --testPathPatterns=unit --runInBand",
     "test:coverage": "jest --coverage --testPathPatterns=unit --runInBand",
-    "test:integration": "jest --testPathPatterns=integration",
-    "test:e2e": "jest --testPathPatterns=e2e",
-    "lint": "tsc --noEmit && eslint src/**/*.ts test/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts test/**/*.ts --fix",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
-    "prepare": "npm run build",
-    "prepublishOnly": "npm run lint && npm run format:check && npm test && npm run build && npm run sync-version -- --check && npm run pack:check && npm audit --audit-level=moderate",
-    "e2e:docker": "docker-compose up -d ssh-server && npm run test:e2e",
-    "integration:docker": "docker-compose up -d ssh-server && npm run test:integration",
+    "test:integration": "jest --testPathPatterns=integration --runInBand",
+    "test:e2e": "jest --testPathPatterns=e2e --runInBand",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" \"test/**/*.ts\" --fix",
+    "lint:staged": "node scripts/run-staged-checks.mjs --lint-only",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.{mjs,cjs}\" \".github/workflows/*.{yml,yaml}\" \".azure/pipelines/*.{yml,yaml}\" \".gitlab-ci.yml\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.{mjs,cjs}\" \".github/workflows/*.{yml,yaml}\" \".azure/pipelines/*.{yml,yaml}\" \".gitlab-ci.yml\"",
+    "format:staged": "node scripts/run-staged-checks.mjs",
+    "prepare": "node scripts/setup-git-hooks.mjs",
+    "prepublishOnly": "npm run check",
+    "e2e:docker": "docker compose up -d ssh-server && npm run test:e2e",
+    "integration:docker": "docker compose up -d ssh-server && npm run test:integration",
     "docs": "npx typedoc --options typedoc.json",
     "start:http": "node dist/server-http.js",
     "setup:chatgpt": "node scripts/setup-chatgpt.mjs",
     "sync-version": "node scripts/sync-version.mjs",
     "version": "node scripts/sync-version.mjs && git add mcp.json server.json registry/mcp-ssh-tool/mcp.json src/mcp.ts",
     "audit": "npm audit --audit-level=moderate",
-    "licenses:check": "license-checker --production --failOn \"GPL;AGPL\"",
+    "licenses:check": "node scripts/check-licenses.mjs",
     "pack:check": "node scripts/check-package-contents.mjs",
+    "check:quality": "npm run format:check && npm run lint && npm run typecheck && npm run audit && npm run licenses:check",
+    "check:package": "npm run build && npm run sync-version -- --check && npm run pack:check",
+    "check:push": "npm run format:check && npm run lint && npm run typecheck && npm test",
+    "check": "npm run check:quality && npm run test:coverage && npm run check:package",
+    "hook:pre-commit": "npm run format:staged",
+    "hook:pre-push": "npm run check:push",
     "changeset": "changeset",
     "changeset:version": "changeset version && npm run sync-version",
     "changeset:publish": "changeset publish"
@@ -78,8 +88,8 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=22.14.0",
-    "npm": ">=10.0.0"
+    "node": "^22.22.2 || ^24.14.1",
+    "npm": "^10.9.2 || ^11.12.1"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
@@ -97,18 +107,16 @@
     "protobufjs": "^7.5.5"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.30.0",
+    "@changesets/cli": "^2.31.0",
     "@jest/globals": "^30.3.0",
-    "@types/node": "^25.5.0",
+    "@types/node": "^24.12.2",
     "@types/ssh2": "^1.15.5",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "eslint": "^9.39.2",
+    "@typescript-eslint/eslint-plugin": "^8.59.0",
+    "@typescript-eslint/parser": "^8.59.0",
+    "eslint": "^9.39.4",
     "jest": "^30.3.0",
-    "jest-junit": "^16.0.0",
-    "license-checker": "^25.0.1",
-    "prettier": "^3.8.1",
-    "ts-jest": "^29.4.6",
+    "prettier": "^3.8.3",
+    "ts-jest": "^29.4.9",
     "typescript": "^5.9.3"
   },
   "jest": {
@@ -167,7 +175,7 @@
     "reporters": [
       "default",
       [
-        "jest-junit",
+        "<rootDir>/scripts/junit-reporter.cjs",
         {
           "outputDirectory": "test-results",
           "outputName": "junit.xml"

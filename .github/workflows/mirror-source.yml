@@ -1,0 +1,91 @@
+name: Mirror Source
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: Branch name to update in mirrors
+        required: true
+        default: main
+      push_tags:
+        description: Push tags to mirrors
+        type: boolean
+        required: true
+        default: true
+      include_gitlab:
+        description: Also push to the optional GitLab mirror URL secret
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mirror-source-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    name: Mirror personal source to CI/CD remotes
+    if: ${{ github.repository_owner == 'oaslananka' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "mcp-ssh-tool mirror"
+          git config user.email "actions@github.com"
+
+      - name: Fetch mirror secrets from Doppler
+        id: doppler
+        uses: dopplerhq/secrets-fetch-action@v2.0.0
+        with:
+          doppler-token: ${{ secrets.DOPPLER_TOKEN }}
+          doppler-project: ${{ secrets.DOPPLER_PROJECT || 'all' }}
+          doppler-config: ${{ secrets.DOPPLER_CONFIG || 'main' }}
+
+      - name: Push to GitHub org CI/CD mirror
+        env:
+          ORG_MIRROR_TOKEN: ${{ steps.doppler.outputs.ORG_MIRROR_TOKEN || steps.doppler.outputs.DOPPLER_GITHUB_SERVICE_TOKEN }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          PUSH_TAGS: ${{ inputs.push_tags }}
+        run: |
+          if [ -z "$ORG_MIRROR_TOKEN" ]; then
+            echo "ORG_MIRROR_TOKEN is required to push to oaslananka-lab/mcp-ssh-tool."
+            exit 1
+          fi
+
+          git remote add org "https://x-access-token:${ORG_MIRROR_TOKEN}@github.com/oaslananka-lab/mcp-ssh-tool.git"
+          git push org "HEAD:${TARGET_BRANCH}"
+
+          if [ "$PUSH_TAGS" = "true" ]; then
+            git push org --tags
+          fi
+
+      - name: Push to optional GitLab mirror
+        env:
+          GITLAB_MIRROR_URL: ${{ steps.doppler.outputs.GITLAB_MIRROR_URL }}
+          INCLUDE_GITLAB: ${{ inputs.include_gitlab }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          PUSH_TAGS: ${{ inputs.push_tags }}
+        run: |
+          if [ "$INCLUDE_GITLAB" != "true" ]; then
+            echo "GitLab mirror was not requested."
+            exit 0
+          fi
+
+          if [ -z "$GITLAB_MIRROR_URL" ]; then
+            echo "GITLAB_MIRROR_URL is required when include_gitlab=true."
+            exit 1
+          fi
+
+          git remote add gitlab "$GITLAB_MIRROR_URL"
+          git push gitlab "HEAD:${TARGET_BRANCH}"
+
+          if [ "$PUSH_TAGS" = "true" ]; then
+            git push gitlab --tags
+          fi

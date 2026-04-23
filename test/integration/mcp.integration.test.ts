@@ -57,6 +57,7 @@ integrationDescribe("MCP integration tests", () => {
       username: TEST_SSH_USER,
       password: TEST_SSH_PASS,
       auth: "password",
+      hostKeyPolicy: "insecure",
     });
 
     sessionId = session.sessionId;

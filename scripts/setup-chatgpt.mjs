@@ -5,24 +5,24 @@
  * Automatically configures mcp-ssh-tool for ChatGPT Desktop
  */
 
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import readline from 'readline';
+import fs from "fs";
+import path from "path";
+import os from "os";
+import readline from "readline";
 
 // Platform-specific config paths
 const CONFIG_PATHS = {
-  darwin: path.join(os.homedir(), 'Library', 'Application Support', 'ChatGPT', 'mcp.json'),
-  win32: path.join(process.env.APPDATA || '', 'ChatGPT', 'mcp.json'),
-  linux: path.join(os.homedir(), '.config', 'chatgpt', 'mcp.json')
+  darwin: path.join(os.homedir(), "Library", "Application Support", "ChatGPT", "mcp.json"),
+  win32: path.join(process.env.APPDATA || "", "ChatGPT", "mcp.json"),
+  linux: path.join(os.homedir(), ".config", "chatgpt", "mcp.json"),
 };
 
 const MCP_CONFIG = {
-  name: 'ssh-mcp-server',
-  description: 'SSH client server for remote automation',
-  command: 'npx',
-  args: ['-y', 'mcp-ssh-tool'],
-  env: {}
+  name: "ssh-mcp-server",
+  description: "SSH client server for remote automation",
+  command: "npx",
+  args: ["-y", "mcp-ssh-tool"],
+  env: {},
 };
 
 function getConfigPath() {
@@ -45,7 +45,7 @@ function ensureDirectoryExists(filePath) {
 function loadExistingConfig(configPath) {
   if (fs.existsSync(configPath)) {
     try {
-      const content = fs.readFileSync(configPath, 'utf8');
+      const content = fs.readFileSync(configPath, "utf8");
       return JSON.parse(content);
     } catch (error) {
       console.warn(`⚠️ Could not parse existing config, creating new one`);
@@ -56,7 +56,7 @@ function loadExistingConfig(configPath) {
 }
 
 function main() {
-  console.log('🔧 MCP SSH Tool - ChatGPT Desktop Setup\n');
+  console.log("🔧 MCP SSH Tool - ChatGPT Desktop Setup\n");
 
   const configPath = getConfigPath();
   console.log(`📄 Config path: ${configPath}\n`);
@@ -67,22 +67,22 @@ function main() {
   const config = loadExistingConfig(configPath);
 
   // Check if already configured
-  if (config.mcpServers && config.mcpServers['ssh-mcp-server']) {
-    console.log('✅ MCP SSH Tool is already configured!');
-    console.log('\nCurrent configuration:');
-    console.log(JSON.stringify(config.mcpServers['ssh-mcp-server'], null, 2));
+  if (config.mcpServers && config.mcpServers["ssh-mcp-server"]) {
+    console.log("✅ MCP SSH Tool is already configured!");
+    console.log("\nCurrent configuration:");
+    console.log(JSON.stringify(config.mcpServers["ssh-mcp-server"], null, 2));
 
     const rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
     });
 
-    rl.question('\n🔄 Do you want to update the configuration? (y/N): ', (answer) => {
+    rl.question("\n🔄 Do you want to update the configuration? (y/N): ", (answer) => {
       rl.close();
-      if (answer.toLowerCase() === 'y') {
+      if (answer.toLowerCase() === "y") {
         addOrUpdateConfig(config, configPath);
       } else {
-        console.log('No changes made.');
+        console.log("No changes made.");
       }
     });
   } else {
@@ -97,17 +97,17 @@ function addOrUpdateConfig(config, configPath) {
   }
 
   // Add/update SSH MCP server
-  config.mcpServers['ssh-mcp-server'] = MCP_CONFIG;
+  config.mcpServers["ssh-mcp-server"] = MCP_CONFIG;
 
   // Write config
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
-  console.log('\n✅ Configuration saved successfully!\n');
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
+  console.log("\n✅ Configuration saved successfully!\n");
 
-  console.log('📋 Next steps:');
-  console.log('   1. Restart ChatGPT Desktop');
-  console.log('   2. Open a new chat');
-  console.log('   3. Use the MCP icon (🔌) to access SSH tools');
-  console.log('\n🎉 Setup complete!');
+  console.log("📋 Next steps:");
+  console.log("   1. Restart ChatGPT Desktop");
+  console.log("   2. Open a new chat");
+  console.log("   3. Use the MCP icon (🔌) to access SSH tools");
+  console.log("\n🎉 Setup complete!");
 }
 
 main();

@@ -1,8 +1,9 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # mcp-ssh-tool — Emergency Manual Publish (GitHub)
 #
-# PRIMARY CI/CD is on Azure DevOps (/.azure/pipelines/).
-# This workflow exists as a manual fallback ONLY.
+# PRIMARY source is the personal GitHub repository.
+# Automatic CI/CD and trusted npm publishing run in the oaslananka-lab org mirror.
+# This workflow exists as a personal-repo manual fallback ONLY.
 #
 # When to use:
 #   - Azure Pipelines is temporarily unavailable
@@ -14,15 +15,14 @@
 name: Publish (Manual — Emergency GitHub Fallback)
 
 # Manual trigger only.
-# Azure Pipelines remains the primary validation path.
-# Use this workflow only for an emergency GitHub fallback.
+# Use this workflow only from github.com/oaslananka/mcp-ssh-tool.
 on:
   workflow_dispatch:
     inputs:
       version_check:
-        description: 'Confirm version in package.json is correct (type YES)'
+        description: "Confirm version in package.json is correct (type YES)"
         required: true
-        default: ''
+        default: ""
 
 concurrency:
   group: publish-manual-${{ github.ref }}
@@ -31,7 +31,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.version_check == 'YES' }}
+    if: ${{ github.repository_owner == 'oaslananka' && github.event.inputs.version_check == 'YES' }}
     permissions:
       contents: write
       id-token: write
@@ -43,9 +43,18 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.x
+          node-version: 24.14.1
           cache: npm
-          registry-url: 'https://registry.npmjs.org'
+          cache-dependency-path: package-lock.json
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Fetch publish secrets from Doppler
+        id: doppler
+        uses: dopplerhq/secrets-fetch-action@v2.0.0
+        with:
+          doppler-token: ${{ secrets.DOPPLER_TOKEN }}
+          doppler-project: ${{ secrets.DOPPLER_PROJECT || 'all' }}
+          doppler-config: ${{ secrets.DOPPLER_CONFIG || 'main' }}
 
       - name: Install
         run: npm ci
@@ -60,25 +69,13 @@ jobs:
             exit 1
           fi
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm test
-
-      - name: Build
-        run: npm run build
-
-      - name: Version sync
-        run: npm run sync-version -- --check
-
-      - name: Package contents
-        run: npm run pack:check
+      - name: Verify release quality
+        run: npm run check
 
       - name: Publish to npm
         run: npm publish --access public --provenance
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ steps.doppler.outputs.NPM_TOKEN }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

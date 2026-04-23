@@ -6,8 +6,8 @@ Thank you for your interest in contributing to mcp-ssh-tool! This document provi
 
 ### Prerequisites
 
-- Node.js 20 or later
-- npm 9 or later
+- Node.js 24.14.1 LTS for local development (`.nvmrc` and `.node-version` are included)
+- npm 11.12.1
 - Git
 
 ### Getting Started
@@ -23,7 +23,7 @@ Thank you for your interest in contributing to mcp-ssh-tool! This document provi
 3. Install dependencies:
 
    ```bash
-   npm install
+   npm ci
    ```
 
 4. Build the project:
@@ -89,8 +89,14 @@ docs(readme): update installation instructions
 
 - Write tests for new features
 - Maintain test coverage
-- Run `npm test` before submitting
+- Run `npm run check` before opening a PR
 - Run `npm run test:integration` when the change affects SSH runtime behavior or MCP server wiring
+
+### Local Quality Gates
+
+- `pre-commit` runs fast staged-file checks: Prettier plus staged TypeScript linting
+- `pre-push` runs `npm run check:push`
+- `npm run check` is the local equivalent of the primary CI quality/package verification path
 
 ### Pull Request Process
 
@@ -103,31 +109,31 @@ docs(readme): update installation instructions
 
 ## Continuous Integration (CI)
 
-Primary CI/CD runs on Azure DevOps under `/.azure/pipelines/`.
+Primary automated CI/CD runs in the GitHub org mirror `oaslananka-lab/mcp-ssh-tool`, with Azure DevOps kept as a manual validation/release-control backup.
 
-- `ci.yml` handles quality checks, tests, coverage publishing, and builds
-- `publish.yml` handles Azure-based release validation and npm publish flow
-- `mirror.yml` is used for GitHub release mirroring from Azure
-
-GitHub Actions is intentionally **manual-only** for emergency fallback publishing.
+- `.github/workflows/ci.yml` is the source-of-truth parity workflow for quality, tests, integration, and package verification
+- `.github/workflows/security.yml` handles CodeQL and dependency review in the org mirror
+- `/.azure/pipelines/ci.yml` and `/.azure/pipelines/publish.yml` remain manual-only backup validation paths
+- Personal GitHub workflows are manual-only fallback paths
 
 ## Releasing
 
-Primary release automation runs via Azure DevOps.
+Primary release automation runs from the GitHub org mirror after validation.
 
 1. Create a changeset for user-visible work: `npm run changeset`
 2. When preparing a release, apply pending changesets: `npm run changeset:version`
 3. Review the generated version bump, then run `npm run sync-version`
-4. Run quality gates locally: `npm run lint`, `npm test`, `npm run test:integration`, `npm run build`
-5. Commit and push the versioned changes.
-6. Create and push a tag: `git tag v1.3.4 && git push origin v1.3.4`
+4. Run quality gates locally: `npm run check`
+5. If SSH/runtime behavior changed, run `npm run test:integration`
+6. Commit and push the versioned changes.
+7. Create and push a tag: `git tag v2.0.0 && git push origin v2.0.0`
 
 Azure publish validation checks:
 
 - `package.json`, `mcp.json`, `server.json`, registry metadata, and `src/mcp.ts` version consistency
 - test and build health before publish
 
-GitHub Actions `publish.yml` should be used only if Azure DevOps is unavailable and a manual hotfix publish is required.
+GitHub Actions `publish.yml` should be used only if the org trusted-publish path is unavailable and a manual hotfix publish is required.
 
 ## Project Structure
 

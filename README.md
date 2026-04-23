@@ -45,7 +45,7 @@ Open a safe SSH session to prod-1 as deploy, inspect host capabilities, then sho
 
 ## Requirements
 
-- Node.js `>=22.14.0`
+- Node.js `22.22.2+` or `24.14.1+` (LTS only)
 - SSH access to target hosts
 - A populated `known_hosts` file for strict host verification, or an explicit per-session host-key policy
 
@@ -190,13 +190,11 @@ Deprecated aliases `STRICT_HOST_KEY_CHECKING` and `SSH_MCP_STRICT_HOST_KEY` are 
 
 ## Development
 
+Use the exact local runtime from `.nvmrc` / `.node-version`, then run:
+
 ```bash
-npm install
-npm run lint
-npm test
-npm run build
-npm run pack:check
-npm audit --audit-level=moderate
+npm ci
+npm run check
 ```
 
 Live SSH suites are opt-in:
@@ -206,11 +204,24 @@ RUN_SSH_INTEGRATION=1 npm run test:integration
 RUN_SSH_E2E=1 npm run test:e2e
 ```
 
+Local quality gates are layered:
+
+- `pre-commit`: formats staged files and lints staged TypeScript only
+- `pre-push`: runs `npm run check:push`
+- manual/full parity: `npm run check`
+
+## CI/CD Ownership
+
+The personal repository `https://github.com/oaslananka/mcp-ssh-tool` is the main source repository. Automatic CI/CD and trusted npm publishing run from the organization mirror `https://github.com/oaslananka-lab/mcp-ssh-tool`; Azure, GitLab, and personal GitHub release actions are manual-only.
+
+See [docs/ci-cd-topology.md](docs/ci-cd-topology.md) for mirror secrets, release flow, and manual fallback guidance.
+
 ## Documentation
 
 - [ARCHITECTURE.md](ARCHITECTURE.md)
 - [SECURITY_DECISIONS.md](SECURITY_DECISIONS.md)
 - [MIGRATION.md](MIGRATION.md)
+- [docs/ci-cd-topology.md](docs/ci-cd-topology.md)
 - [docs/configuration.md](docs/configuration.md)
 - [docs/security-model.md](docs/security-model.md)
 - [docs/troubleshooting.md](docs/troubleshooting.md)

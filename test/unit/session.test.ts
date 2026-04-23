@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globals";
+import { createHash } from "node:crypto";
 import fs from "fs";
 import { NodeSSH } from "node-ssh";
 import os from "os";
@@ -13,6 +14,11 @@ type ExecResponse = {
 
 function createExecMap(entries: Record<string, ExecResponse | Error>) {
   return new Map<string, ExecResponse | Error>(Object.entries(entries));
+}
+
+function knownHostFingerprint(keyBlob: string, encoding: "base64" | "hex" = "base64") {
+  const digest = createHash("sha256").update(Buffer.from(keyBlob, "base64")).digest(encoding);
+  return encoding === "base64" ? digest.replace(/=+$/, "") : digest;
 }
 
 describe("SessionManager", () => {
@@ -96,13 +102,106 @@ describe("SessionManager", () => {
         host: "example.com",
         username: "demo",
         password: "secret",
-        knownHosts: "/tmp/known_hosts",
+        hostHash: "sha256",
+        hostVerifier: expect.any(Function),
       }),
     );
-    expect(connectConfig).not.toHaveProperty("hostVerifier");
 
     await expect(manager.closeSession(result.sessionId)).resolves.toBe(true);
     expect(session?.ssh.dispose).toHaveBeenCalled();
+  });
+
+  test("verifies strict known_hosts fingerprints with OpenSSH-style entries", async () => {
+    const keyBlob = Buffer.from("known-host-key").toString("base64");
+    const otherKeyBlob = Buffer.from("other-key").toString("base64");
+    const knownHostsPath = path.join(tempDir, "known_hosts");
+    fs.writeFileSync(
+      knownHostsPath,
+      [
+        "# comment",
+        "",
+        `example.com ssh-ed25519 ${keyBlob}`,
+        `*.example.org ssh-ed25519 ${keyBlob}`,
+        `@revoked revoked.example ssh-ed25519 ${keyBlob}`,
+        `[other.example]:2222 ssh-ed25519 ${otherKeyBlob}`,
+      ].join("\n"),
+      "utf8",
+    );
+
+    const strictSession = await manager.openSession({
+      host: "example.com",
+      username: "demo",
+      password: "secret",
+      auth: "password",
+      knownHostsPath,
+    });
+    const strictConfig = (
+      manager.getSession(strictSession.sessionId)?.ssh as NodeSSH & {
+        __connectConfig?: Record<string, unknown>;
+      }
+    ).__connectConfig;
+    const strictVerifier = strictConfig?.hostVerifier as (fingerprint: string) => boolean;
+
+    expect(strictVerifier(knownHostFingerprint(keyBlob))).toBe(true);
+    expect(strictVerifier(`SHA256:${knownHostFingerprint(keyBlob)}`)).toBe(true);
+    expect(strictVerifier(knownHostFingerprint(keyBlob, "hex"))).toBe(true);
+    expect(strictVerifier(knownHostFingerprint(otherKeyBlob))).toBe(false);
+
+    const wildcardSession = await manager.openSession({
+      host: "api.example.org",
+      username: "demo",
+      password: "secret",
+      auth: "password",
+      knownHostsPath,
+    });
+    const wildcardConfig = (
+      manager.getSession(wildcardSession.sessionId)?.ssh as NodeSSH & {
+        __connectConfig?: Record<string, unknown>;
+      }
+    ).__connectConfig;
+    expect(
+      (wildcardConfig?.hostVerifier as (fingerprint: string) => boolean)(
+        knownHostFingerprint(keyBlob),
+      ),
+    ).toBe(true);
+
+    const revokedSession = await manager.openSession({
+      host: "revoked.example",
+      username: "demo",
+      password: "secret",
+      auth: "password",
+      knownHostsPath,
+    });
+    const revokedConfig = (
+      manager.getSession(revokedSession.sessionId)?.ssh as NodeSSH & {
+        __connectConfig?: Record<string, unknown>;
+      }
+    ).__connectConfig;
+    expect(
+      (revokedConfig?.hostVerifier as (fingerprint: string) => boolean)(
+        knownHostFingerprint(keyBlob),
+      ),
+    ).toBe(false);
+
+    const emptyKnownHostsPath = path.join(tempDir, "empty_known_hosts");
+    fs.writeFileSync(emptyKnownHostsPath, "", "utf8");
+    const emptySession = await manager.openSession({
+      host: "empty.example",
+      username: "demo",
+      password: "secret",
+      auth: "password",
+      knownHostsPath: emptyKnownHostsPath,
+    });
+    const emptyConfig = (
+      manager.getSession(emptySession.sessionId)?.ssh as NodeSSH & {
+        __connectConfig?: Record<string, unknown>;
+      }
+    ).__connectConfig;
+    expect(
+      (emptyConfig?.hostVerifier as (fingerprint: string) => boolean)(
+        knownHostFingerprint(keyBlob),
+      ),
+    ).toBe(false);
   });
 
   test("supports fingerprint pinning and explain-mode root denial", async () => {

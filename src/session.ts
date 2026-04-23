@@ -1,6 +1,6 @@
 import { NodeSSH, type Config } from "node-ssh";
 import type { SFTPWrapper } from "ssh2";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -50,6 +50,13 @@ type SSHConnectConfig = Config & {
 
 function normalizeSha256Fingerprint(fingerprint: string): string {
   return fingerprint.replace(/^SHA256:/i, "").trim();
+}
+
+function knownHostKeyFingerprints(keyBlob: string): string[] {
+  const key = Buffer.from(keyBlob, "base64");
+  const base64 = createHash("sha256").update(key).digest("base64").replace(/=+$/, "");
+  const hex = createHash("sha256").update(key).digest("hex");
+  return [base64, hex];
 }
 
 /**
@@ -191,8 +198,10 @@ export class SessionManager {
         connectConfig.hostHash = "sha256";
         connectConfig.hostVerifier = (hashedKey: string) =>
           this.verifyAcceptNewHostKey(params.host, params.port ?? 22, hashedKey);
-      } else if (knownHostsPath !== "") {
-        connectConfig.knownHosts = knownHostsPath;
+      } else {
+        connectConfig.hostHash = "sha256";
+        connectConfig.hostVerifier = (hashedKey: string) =>
+          this.verifyKnownHostKey(params.host, params.port ?? 22, knownHostsPath, hashedKey);
       }
 
       logger.debug("Connecting to SSH server");
@@ -283,6 +292,12 @@ export class SessionManager {
           );
         }
         if (error.message.toLowerCase().includes("host key")) {
+          throw createHostKeyError(
+            "SSH host key verification failed",
+            "Check known_hosts, hostKeyPolicy, or expectedHostKeySha256",
+          );
+        }
+        if (error.message.toLowerCase().includes("host denied")) {
           throw createHostKeyError(
             "SSH host key verification failed",
             "Check known_hosts, hostKeyPolicy, or expectedHostKeySha256",
@@ -509,6 +524,98 @@ export class SessionManager {
     }
 
     return accepted === normalized;
+  }
+
+  private verifyKnownHostKey(
+    host: string,
+    port: number,
+    knownHostsPath: string,
+    hashedKey: string,
+  ): boolean {
+    if (!knownHostsPath) {
+      return false;
+    }
+
+    let contents: string;
+    try {
+      contents = fs.readFileSync(knownHostsPath, "utf8");
+    } catch {
+      return false;
+    }
+
+    const expected = normalizeSha256Fingerprint(hashedKey);
+    for (const line of contents.split(/\r?\n/)) {
+      const parsed = this.parseKnownHostLine(line);
+      if (!parsed || !this.knownHostPatternMatches(parsed.hosts, host, port)) {
+        continue;
+      }
+
+      if (parsed.marker === "@revoked") {
+        return false;
+      }
+
+      try {
+        const fingerprints = knownHostKeyFingerprints(parsed.keyBlob);
+        if (
+          fingerprints.some((fingerprint) => normalizeSha256Fingerprint(fingerprint) === expected)
+        ) {
+          return true;
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    return false;
+  }
+
+  private parseKnownHostLine(
+    line: string,
+  ): { marker?: string; hosts: string; keyBlob: string } | undefined {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      return undefined;
+    }
+
+    const parts = trimmed.split(/\s+/);
+    if (parts[0]?.startsWith("@")) {
+      if (parts.length < 4) {
+        return undefined;
+      }
+      return { marker: parts[0], hosts: parts[1] ?? "", keyBlob: parts[3] ?? "" };
+    }
+
+    if (parts.length < 3) {
+      return undefined;
+    }
+
+    return { hosts: parts[0] ?? "", keyBlob: parts[2] ?? "" };
+  }
+
+  private knownHostPatternMatches(hosts: string, host: string, port: number): boolean {
+    const candidates = new Set([host, `[${host}]:${port}`]);
+
+    for (const pattern of hosts.split(",")) {
+      if (pattern.startsWith("|")) {
+        continue;
+      }
+
+      if (candidates.has(pattern)) {
+        return true;
+      }
+
+      const regex = new RegExp(
+        `^${pattern
+          .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+          .replace(/\*/g, ".*")
+          .replace(/\?/g, ".")}$`,
+      );
+      if (regex.test(host)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**

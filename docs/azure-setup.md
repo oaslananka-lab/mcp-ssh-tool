@@ -1,46 +1,53 @@
 # Azure DevOps Setup Guide
 
+Azure DevOps is a manual validation and release-control backup for `mcp-ssh-tool`. Automatic CI/CD ownership lives in the GitHub organization mirror at `https://github.com/oaslananka-lab/mcp-ssh-tool`.
+
+## Pipeline Policy
+
+- Do not enable branch triggers.
+- Do not enable pull-request triggers.
+- Use Azure manually for extra validation, artifact generation, and release approval evidence.
+- Use the org GitHub `Publish with npm Provenance` workflow for npm trusted publishing after Azure validation when needed.
+
+## Pipelines
+
+Create these pipelines from existing YAML:
+
+| Pipeline | YAML | Trigger |
+|----------|------|---------|
+| Manual CI validation | `.azure/pipelines/ci.yml` | Manual |
+| Manual publish validation | `.azure/pipelines/publish.yml` | Manual |
+| Manual release record | `.azure/pipelines/mirror.yml` | Manual |
+
+## Environment
+
+Create an Azure environment named `npm-production` for `.azure/pipelines/publish.yml`.
+
+Recommended controls:
+
+- Require approval from the release owner.
+- Restrict who can manually run the publish validation pipeline.
+- Retain validation artifacts for release review.
+
 ## Service Connections
 
-### npm-connection (Mevcut)
-- Type: npm
-- Registry URL: https://registry.npmjs.org
-- Username: oaslananka
-- İsim: npm-connection
+Only create service connections that are required for the manual pipeline you are using.
 
-### github-mirror (Yeni Oluşturulacak)
-1. Project Settings → Service connections → New service connection
-2. GitHub → Personal Access Token
-3. Token gereksinimleri: `repo`, `write:packages`
-4. İsim: github-connection
+### GitHub Release Connection
 
-## Variable Groups
+Used by `.azure/pipelines/mirror.yml` when manually creating release records.
 
-### github-mirror-secrets
-1. Pipelines → Library → Variable groups → New variable group
-2. İsim: `github-mirror-secrets`
-3. Variables:
-   - `GITHUB_MIRROR_TOKEN` (secret): GitHub PAT token
-     (Permissions: repo:all, write:packages)
+1. Open Project Settings -> Service connections -> New service connection.
+2. Choose GitHub.
+3. Use a fine-scoped token with repository access only for the intended repository.
+4. Name the connection `GitHub` to match the pipeline YAML.
 
-### npm-publish-secrets
-1. Pipelines → Library → Variable groups → New variable group
-2. İsim: `npm-publish-secrets`
-3. Variables:
-   - `NPM_TOKEN` (secret): npmjs.com Access Token
-     (Type: Automation, Permissions: Read and Publish)
+## Release Handoff
 
-## Pipeline Kurulumu
+1. Run `.azure/pipelines/publish.yml` manually.
+2. Confirm lint, tests, build, version sync, package contents, SBOM, and package hash complete successfully.
+3. Copy the Azure run URL.
+4. Start the org GitHub workflow `Publish with npm Provenance`.
+5. Paste the Azure run URL and type `PUBLISH`.
 
-1. Pipelines → New pipeline
-2. Azure Repos Git → mcp-ssh-tool
-3. Existing Azure Pipelines YAML
-4. CI: `.azure/pipelines/ci.yml`
-5. Publish: `.azure/pipelines/publish.yml`
-6. Mirror: `.azure/pipelines/mirror.yml`
-
-## Environment Kurulumu (publish.yml için)
-
-1. Pipelines → Environments → New environment
-2. İsim: `npm-production`
-3. Approvals: Add approval with owner = oaslananka
+The org GitHub trusted-publish workflow is intentionally owner-gated and will only publish from `oaslananka-lab`.

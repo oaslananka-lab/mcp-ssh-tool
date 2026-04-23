@@ -55,4 +55,13 @@ describe("prompt suggestions", () => {
     expect(prompt.messages[0]?.content.text).toContain("prod-1");
     expect(() => getMCPPrompt("missing")).toThrow("Unknown prompt");
   });
+
+  test("renders every curated MCP prompt with safe fallbacks", () => {
+    expect(getMCPPrompt("safe-connect").messages[0]?.content.text).toContain("<host>");
+    expect(getMCPPrompt("inspect-host-capabilities").messages[0]?.content.text).toContain(
+      "os_detect",
+    );
+    expect(getMCPPrompt("plan-mutation").messages[0]?.content.text).toContain("<describe change>");
+    expect(getMCPPrompt("managed-config-change").messages[0]?.content.text).toContain("<path>");
+  });
 });

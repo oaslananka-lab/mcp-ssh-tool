@@ -1,0 +1,49 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - when: never
+
+stages:
+  - quality
+  - test
+  - package
+
+default:
+  image: node:24.14.1-bookworm
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  before_script:
+    - npm ci --cache .npm --prefer-offline
+
+quality:
+  stage: quality
+  script:
+    - npm run check:quality
+
+unit:
+  stage: test
+  script:
+    - npm run test:coverage
+  artifacts:
+    when: always
+    paths:
+      - coverage/
+      - test-results/
+    expire_in: 14 days
+
+package:
+  stage: package
+  script:
+    - npm run check:package
+    - mkdir -p artifacts
+    - npm sbom --sbom-format=spdx > artifacts/sbom.spdx.json
+    - PACKAGE_FILE=$(npm pack --pack-destination artifacts --json | node -e "let d=''; process.stdin.on('data', c => d += c); process.stdin.on('end', () => console.log(JSON.parse(d)[0].filename));")
+    - sha256sum "artifacts/$PACKAGE_FILE" > "artifacts/$PACKAGE_FILE.sha256"
+  artifacts:
+    paths:
+      - artifacts/
+    expire_in: 14 days

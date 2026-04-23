@@ -13,7 +13,13 @@ const filePaths = files
   .map((entry) => (typeof entry?.path === "string" ? entry.path : ""))
   .filter(Boolean);
 
-const forbiddenPatterns = [/^test\//, /^coverage\//, /^test-results\//, /^\.github\//, /^\.changeset\//];
+const forbiddenPatterns = [
+  /^test\//,
+  /^coverage\//,
+  /^test-results\//,
+  /^\.github\//,
+  /^\.changeset\//,
+];
 const leakedPaths = filePaths.filter((filePath) =>
   forbiddenPatterns.some((pattern) => pattern.test(filePath)),
 );

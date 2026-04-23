@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-04-22
+
+### Added
+
+- Streamable HTTP transport with stdio as the default local transport and legacy SSE gated behind an explicit compatibility switch.
+- Central policy engine for host, command, path, root-login, sudo, destructive command, and destructive filesystem controls.
+- `hostKeyPolicy`, `expectedHostKeySha256`, and per-session `policyMode` support for safer session creation and explain-mode workflows.
+- Stable tool metadata, annotations, output schemas, structured content, curated MCP prompts, and additional resources for policy, audit, and support matrix visibility.
+- CI/CD topology for personal source repository plus organization-owned automated validation, security scanning, trusted npm publishing, and Doppler-backed runtime secrets.
+- GitLab manual validation pipeline and manual source mirroring workflow for the GitHub organization CI/CD repository.
+
+### Changed
+
+- Raised the runtime floor to Node.js `>=22.14.0` and aligned validation around Node 22/24 with Node 26 canary coverage.
+- Default security posture is now strict host-key verification, no root SSH login, raw sudo denied, destructive operations policy-gated, and remote HTTP bound to loopback.
+- File operations now enforce size limits and use SFTP-first behavior with safer portability fallbacks.
+- Tunnels now have real lifecycle accounting and close semantics.
+- Azure Pipelines are manual-only validation/release-control backups; automatic CI/CD now runs in the `oaslananka-lab` GitHub organization mirror.
+- README, security, architecture, migration, enterprise, troubleshooting, and CI/CD documentation were updated for v2 behavior.
+
+### Security
+
+- Added machine-readable policy denials and standardized error codes including `EPOLICY`, `EHOSTKEY`, `ELIMIT`, and `EUNSUPPORTED`.
+- Improved auditability, metrics, redacted structured logging, and safer publish provenance flow.
+- Moved personal-repository mirror and emergency publish secrets behind Doppler runtime fetches.
+
+### Breaking
+
+- v2 secure defaults can deny workflows that previously relied on insecure host-key behavior, root login, raw sudo, or unrestricted destructive operations.
+- Remote HTTP usage should migrate to Streamable HTTP at `/mcp`; legacy SSE is compatibility-only.
+- Node.js versions below `22.14.0` are no longer supported.
+
 ## [1.3.5] - 2026-04-08
 
 ### Added

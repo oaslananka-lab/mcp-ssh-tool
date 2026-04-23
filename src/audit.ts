@@ -1,4 +1,4 @@
-import { redactSensitiveData } from "./logging.js";
+import { redactErrorMessage, redactSensitiveData } from "./logging.js";
 import type { PolicyDecision } from "./policy.js";
 
 export interface AuditEvent {
@@ -20,19 +20,43 @@ export class AuditLog {
 
   constructor(private readonly maxEvents = 500) {}
 
+  private redactEvent(event: AuditEvent): AuditEvent {
+    const fieldRedacted = redactSensitiveData(event);
+    return this.redactStringPatterns(fieldRedacted) as AuditEvent;
+  }
+
+  private redactStringPatterns(value: unknown): unknown {
+    if (typeof value === "string") {
+      return redactErrorMessage(value);
+    }
+
+    if (Array.isArray(value)) {
+      return value.map((item) => this.redactStringPatterns(item));
+    }
+
+    if (value && typeof value === "object") {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, item]) => [key, this.redactStringPatterns(item)]),
+      );
+    }
+
+    return value;
+  }
+
   record(event: Omit<AuditEvent, "id" | "timestamp">): AuditEvent {
     const auditEvent: AuditEvent = {
       ...event,
       id: `audit-${Date.now()}-${++this.sequence}`,
       timestamp: new Date().toISOString(),
     };
+    const redactedEvent = this.redactEvent(auditEvent);
 
-    this.events.push(redactSensitiveData(auditEvent) as AuditEvent);
+    this.events.push(redactedEvent);
     if (this.events.length > this.maxEvents) {
       this.events.splice(0, this.events.length - this.maxEvents);
     }
 
-    return auditEvent;
+    return { ...redactedEvent };
   }
 
   recordPolicyDecision(
