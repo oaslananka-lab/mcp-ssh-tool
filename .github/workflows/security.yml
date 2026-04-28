@@ -188,4 +188,8 @@ jobs:
         if: env.HAS_DOPPLER_TOKEN == 'true'
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-        run: doppler run -- bash -lc 'test -n "${SAFETY_API_KEY:-}" && echo "SAFETY_API_KEY injected through Doppler."'
+        run: |
+          doppler run -- bash <<'BASH'
+          set -euo pipefail
+          test -n "${SAFETY_API_KEY:-}" && echo "SAFETY_API_KEY injected through Doppler."
+          BASH

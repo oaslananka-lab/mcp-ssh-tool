@@ -119,13 +119,13 @@ jobs:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
           RELEASE_VERSION: ${{ inputs.version }}
         run: |
-          doppler run -- bash -lc '
-            set -euo pipefail
-            export GH_TOKEN="$DOPPLER_GITHUB_SERVICE_TOKEN"
-            gh release create "$RELEASE_VERSION" \
-              artifacts/* \
-              --repo oaslananka/mcp-ssh-tool \
-              --target "$GITHUB_SHA" \
-              --title "mcp-ssh-tool $RELEASE_VERSION" \
-              --generate-notes
-          '
+          doppler run -- bash <<'BASH'
+          set -euo pipefail
+          export GH_TOKEN="$DOPPLER_GITHUB_SERVICE_TOKEN"
+          gh release create "$RELEASE_VERSION" \
+            artifacts/* \
+            --repo oaslananka/mcp-ssh-tool \
+            --target "$GITHUB_SHA" \
+            --title "mcp-ssh-tool $RELEASE_VERSION" \
+            --generate-notes
+          BASH

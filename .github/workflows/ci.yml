@@ -109,7 +109,7 @@ jobs:
         if: matrix.node == '24.14.1' && env.HAS_DOPPLER_TOKEN == 'true'
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-        run: doppler run -- npx --yes codecov --file coverage/lcov.info --disable-search
+        run: doppler run -- npx --yes codecov --file coverage/lcov.info
 
   integration:
     name: SSH Integration

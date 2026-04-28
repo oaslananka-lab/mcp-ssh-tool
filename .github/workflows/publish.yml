@@ -81,7 +81,11 @@ jobs:
       - name: Publish to npm using Doppler-injected token
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-        run: doppler run -- bash -lc 'NODE_AUTH_TOKEN="$NPM_TOKEN" npm publish --access public --provenance'
+        run: |
+          doppler run -- bash <<'BASH'
+          set -euo pipefail
+          NODE_AUTH_TOKEN="$NPM_TOKEN" npm publish --access public --provenance
+          BASH
 
       - name: Create organization GitHub Release
         env:

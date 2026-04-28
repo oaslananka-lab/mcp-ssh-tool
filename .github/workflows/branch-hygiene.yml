@@ -23,7 +23,7 @@ jobs:
           gh api repos/oaslananka-lab/mcp-ssh-tool/branches --paginate \
             --jq '.[] | select(.protected | not) | [.name, .commit.sha] | @tsv' |
           while IFS=$'\t' read -r branch sha; do
-            date_iso="$(gh api repos/oaslananka-lab/mcp-ssh-tool/commits/$sha --jq '.commit.committer.date')"
+            date_iso="$(gh api "repos/oaslananka-lab/mcp-ssh-tool/commits/$sha" --jq '.commit.committer.date')"
             date_epoch="$(date -u -d "$date_iso" +%s)"
             if [ "$date_epoch" -lt "$cutoff" ]; then
               echo "STALE branch=$branch last_commit=$date_iso sha=$sha"
