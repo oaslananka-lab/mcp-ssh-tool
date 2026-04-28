@@ -1,0 +1,89 @@
+version: "3"
+
+tasks:
+  hooks:
+    desc: Run tracked git hook parity and pre-commit hooks when available.
+    cmds:
+      - npm run hook:pre-commit
+      - npm run hook:pre-push
+      - node scripts/run-precommit-hooks.mjs --all-files
+
+  format:check:
+    desc: Check formatting.
+    cmds:
+      - npm run format:check
+
+  lint:
+    desc: Run ESLint.
+    cmds:
+      - npm run lint
+
+  typecheck:
+    desc: Run TypeScript type checking.
+    cmds:
+      - npm run typecheck
+
+  test:cov:
+    desc: Run unit tests with coverage.
+    cmds:
+      - npm run test:coverage
+
+  audit:
+    desc: Run npm audit.
+    cmds:
+      - npm run audit
+
+  licenses:
+    desc: Check dependency licenses.
+    cmds:
+      - npm run licenses:check
+
+  build:
+    desc: Build TypeScript output.
+    cmds:
+      - npm run build
+
+  workflows:lint:
+    desc: Validate workflow guards and run available workflow linters.
+    cmds:
+      - node scripts/check-workflow-guards.mjs
+      - actionlint
+      - zizmor .github/workflows
+
+  doppler:check:
+    desc: Validate the tracked Doppler secret inventory for local parity.
+    cmds:
+      - bash -lc "ALLOW_DOPPLER_OFFLINE=1 DOPPLER_LIVE_CHECK=0 bash scripts/verify-doppler-secrets.sh"
+
+  sbom:
+    desc: Generate a local CycloneDX SBOM artifact.
+    cmds:
+      - 'node -e "require(''node:fs'').mkdirSync(''artifacts'', { recursive: true })"'
+      - npm sbom --sbom-format=cyclonedx > artifacts/sbom.cdx.json
+
+  security:local:
+    desc: Run best-effort local security checks with installed optional tools.
+    cmds:
+      - bash scripts/run-security-local.sh
+
+  pack:dry-run:
+    desc: Verify package contents with npm pack dry-run.
+    cmds:
+      - npm pack --dry-run
+
+  ci:
+    desc: Run local parity gates used before pushing.
+    cmds:
+      - task: format:check
+      - task: lint
+      - task: typecheck
+      - task: test:cov
+      - task: audit
+      - task: licenses
+      - task: build
+      - npm run sync-version -- --check
+      - npm run pack:check
+      - task: workflows:lint
+      - task: doppler:check
+      - task: sbom
+      - task: pack:dry-run

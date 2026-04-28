@@ -2,3 +2,4 @@
 set -eu
 
 npm run hook:pre-push
+node scripts/run-precommit-hooks.mjs --hook-stage pre-push --all-files
