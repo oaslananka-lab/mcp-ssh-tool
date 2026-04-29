@@ -141,14 +141,37 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - uses: aquasecurity/trivy-action@0.35.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          format: sarif
-          output: trivy-results.sarif
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
+      - name: Install Trivy CLI
+        env:
+          TRIVY_VERSION: 0.70.0
+          TRIVY_CHECKSUMS_SHA256: c45281240bb9211ea9e830fc0bf5cf8acf7c0ca830feb64ac8a0aa932c5c92d9
+          TRIVY_TARBALL_SHA256: 8b4376d5d6befe5c24d503f10ff136d9e0c49f9127a4279fd110b727929a5aa9
+        run: |
+          set -euo pipefail
+          base_url="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+          archive="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+
+          curl -sSfL "${base_url}/trivy_${TRIVY_VERSION}_checksums.txt" -o trivy_checksums.txt
+          echo "${TRIVY_CHECKSUMS_SHA256}  trivy_checksums.txt" | sha256sum -c -
+
+          curl -sSfL "${base_url}/${archive}" -o "${archive}"
+          echo "${TRIVY_TARBALL_SHA256}  ${archive}" | sha256sum -c -
+          grep " ${archive}$" trivy_checksums.txt | sha256sum -c -
+
+          tar -xzf "${archive}" trivy
+          sudo install -m 0755 trivy /usr/local/bin/trivy
+          trivy --version
+      - name: Run Trivy filesystem scan
+        run: |
+          trivy fs \
+            --scanners vuln,misconfig,secret \
+            --format sarif \
+            --output trivy-results.sarif \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            --no-progress \
+            .
       - uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
