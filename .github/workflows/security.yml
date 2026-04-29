@@ -60,7 +60,7 @@ jobs:
 
   scorecard:
     name: OpenSSF Scorecard
-    if: ${{ github.repository == 'oaslananka-lab/mcp-ssh-tool' }}
+    if: ${{ github.repository == 'oaslananka-lab/mcp-ssh-tool' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -88,14 +88,30 @@ jobs:
     if: ${{ github.repository == 'oaslananka-lab/mcp-ssh-tool' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+      - name: Run Gitleaks OSS CLI
+        run: |
+          docker run --rm \
+            -v "$PWD:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1 \
+            git \
+            --no-banner \
+            --redact \
+            --log-opts="--all" \
+            --report-format sarif \
+            --report-path /repo/gitleaks.sarif \
+            /repo
+      - uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: gitleaks.sarif
 
   hadolint:
     name: Hadolint
