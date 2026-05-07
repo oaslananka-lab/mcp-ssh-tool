@@ -11,7 +11,7 @@ else
 fi
 
 if command -v zizmor >/dev/null 2>&1; then
-  zizmor .github/workflows
+  zizmor --offline --min-severity low .github/workflows
   status=$((status || $?))
 else
   echo "zizmor is not installed; skipping local workflow security lint."

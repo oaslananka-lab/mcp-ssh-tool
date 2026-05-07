@@ -34,3 +34,7 @@ gh run view <RUN_ID> --repo oaslananka-lab/mcp-ssh-tool --log-failed
 ```
 
 Do not treat local checks as a substitute for inspecting org GitHub Actions on PR work.
+
+## Security Feature Setup
+
+Enable GitHub Dependency Graph for the org repository when repository settings allow it. The `Dependency Review` job checks the dependency-graph compare endpoint first and skips with an explicit message until GitHub exposes that API for this repository.
