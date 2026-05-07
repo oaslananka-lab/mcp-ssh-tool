@@ -212,3 +212,23 @@ jobs:
         with:
           name: release-verification
           path: artifacts
+
+  docker:
+    name: Docker Smoke
+    if: ${{ github.repository == 'oaslananka-lab/mcp-ssh-tool' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - package
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Build production image
+        run: docker build -t mcp-ssh-tool:ci .
+
+      - name: Smoke CLI
+        run: |
+          docker run --rm mcp-ssh-tool:ci --version
+          docker run --rm mcp-ssh-tool:ci --help

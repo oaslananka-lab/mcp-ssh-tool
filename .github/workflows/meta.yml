@@ -21,6 +21,10 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+concurrency:
+  group: meta-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   meta:
     name: Workflow and Metadata Lint
@@ -61,15 +65,4 @@ jobs:
         run: bash scripts/run-workflow-lints.sh
 
       - name: Validate release metadata
-        run: |
-          npm run sync-version -- --check
-          node - <<'NODE'
-          const pkg = require("./package.json");
-          const server = require("./server.json");
-          if (pkg.name !== "mcp-ssh-tool") throw new Error("package name changed");
-          if (pkg.mcpName !== "io.github.oaslananka/mcp-ssh-tool") throw new Error("mcpName changed");
-          if (server.name !== pkg.mcpName) throw new Error("server.json name must match package.json mcpName");
-          if (pkg.repository?.url !== "git+https://github.com/oaslananka-lab/mcp-ssh-tool.git") {
-            throw new Error("package repository.url must stay aligned with the org provenance repo");
-          }
-          NODE
+        run: npm run sync-version -- --check && npm run validate:mcp-metadata && npm run validate:chatgpt-app

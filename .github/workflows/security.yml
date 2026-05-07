@@ -23,6 +23,10 @@ env:
   DOPPLER_CONFIG: main
   HAS_DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN != '' }}
 
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   codeql:
     name: CodeQL

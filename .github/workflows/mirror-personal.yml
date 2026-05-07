@@ -1,0 +1,87 @@
+name: Mirror Personal Showcase
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Preview the mirror push without updating the personal repository"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      force_mirror:
+        description: "Use force push for main and v*.*.* tags"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mirror-personal-main
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    name: Mirror org main and release tags to personal showcase
+    if: ${{ github.repository == 'oaslananka-lab/mcp-ssh-tool' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configure mirror remote
+        env:
+          PERSONAL_REPO_PUSH_TOKEN: ${{ secrets.PERSONAL_REPO_PUSH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PERSONAL_REPO_PUSH_TOKEN:-}" ]; then
+            echo "PERSONAL_REPO_PUSH_TOKEN is required for personal showcase mirroring."
+            exit 1
+          fi
+          git remote add personal "https://x-access-token:${PERSONAL_REPO_PUSH_TOKEN}@github.com/oaslananka/mcp-ssh-tool.git"
+
+      - name: Mirror main and release tags
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          FORCE_MIRROR: ${{ inputs.force_mirror }}
+        run: |
+          set -euo pipefail
+          push_flags=()
+          branch_ref="HEAD:refs/heads/main"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            push_flags+=(--dry-run)
+          fi
+
+          if [ "$FORCE_MIRROR" = "true" ]; then
+            branch_ref="+${branch_ref}"
+          fi
+
+          git push "${push_flags[@]}" personal "${branch_ref}"
+
+          while IFS= read -r tag; do
+            tag_ref="refs/tags/${tag}:refs/tags/${tag}"
+            if [ "$FORCE_MIRROR" = "true" ]; then
+              tag_ref="+${tag_ref}"
+            fi
+            git push "${push_flags[@]}" personal "${tag_ref}"
+          done < <(git tag -l "v*.*.*" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true)
+
+      - name: Report mirror mode
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "Dry-run mirror completed. No personal repository refs were changed."
+          else
+            echo "Personal showcase mirror updated from the org repository."
+          fi

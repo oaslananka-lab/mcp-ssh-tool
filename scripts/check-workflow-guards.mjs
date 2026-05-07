@@ -70,8 +70,11 @@ for (const filePath of readWorkflowFiles()) {
   const relativePath = path.relative(rootDir, filePath).replaceAll(path.sep, "/");
   const content = fs.readFileSync(filePath, "utf8");
 
-  if (relativePath.endsWith("mirror-source.yml")) {
-    errors.push(`${relativePath}: mirror-source workflow must be removed`);
+  if (
+    relativePath.endsWith("mirror-source.yml") ||
+    relativePath.endsWith("sync-from-canonical.yml")
+  ) {
+    errors.push(`${relativePath}: personal-to-org sync workflow must be removed`);
   }
 
   if (content.includes("github.repository_owner")) {
@@ -82,10 +85,12 @@ for (const filePath of readWorkflowFiles()) {
     errors.push(`${relativePath}: personal-repo job guard is not allowed`);
   }
 
+  if (content.includes("git remote add canonical https://github.com/oaslananka/mcp-ssh-tool.git")) {
+    errors.push(`${relativePath}: personal-to-org canonical remote is not allowed`);
+  }
+
   for (const job of findJobBlocks(content)) {
-    const hasGuard = job.lines.some(
-      (line) => line.trim().startsWith("if:") && line.includes(requiredGuard),
-    );
+    const hasGuard = job.lines.join("\n").includes(requiredGuard);
 
     if (!hasGuard) {
       errors.push(`${relativePath}: job '${job.name}' is missing exact org repository guard`);
